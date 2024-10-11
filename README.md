@@ -20,12 +20,18 @@ To ask questions to the chatbot, you should:
 3. Press Enter or click the send button to submit your question.
 4. You can ask multiple questions in succession, creating a conversation thread.
 
+What I updated over the original configuration:
+1. Extended file support: Added PDF handling alongside text files.
+2. Multiple file uploads: Allows users to upload and process multiple documents.
+3. Document processing: Implemented document chunking to better handling of large texts.
+4. Langchain integration: Utilized Langchain's document handling capabilities, setting up for potential future enhancements.
+   
 Configuration Changes
 I updated the Python version in the Dockerfile to 3.8 for compatibility with all required libraries and added the following packages to the requirements.txt file:
-streamlit
-openai
-PyPDF2
-langchain
-langchain_openai
-langchain_community
-chromadb
+1. streamlit
+2. openai
+3. PyPDF2
+4. langchain
+5. langchain_openai
+6. langchain_community
+7. chromadb
