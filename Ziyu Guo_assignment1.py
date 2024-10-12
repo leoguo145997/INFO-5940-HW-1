@@ -3,6 +3,11 @@ from openai import AzureOpenAI
 from os import environ
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI
+from langchain_chroma import Chroma
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
 #learned the method PyPDF2 to load pdf by ChatGPT
 import PyPDF2
@@ -15,6 +20,22 @@ question = st.chat_input(
     "Ask something about the articles",
     disabled=not uploaded_files,
 )
+
+# Initialize LangChain's AzureOpenAI wrapper
+llm = AzureChatOpenAI(
+    azure_deployment="gpt-4o",
+    temperature=0.2,
+    api_version="2023-06-01-preview",
+)
+
+# Initialize session state
+if "messages" not in st.session_state:
+    st.session_state["messages"] = [{"role": "assistant", "content": "Upload documents and ask questions about them!"}]
+if "vectorstore" not in st.session_state:
+    st.session_state["vectorstore"] = None
+if "processed_files" not in st.session_state:
+    st.session_state["processed_files"] = set()
+
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = [{"role": "assistant", "content": "Upload documents and ask questions about them!"}]
@@ -56,6 +77,34 @@ if uploaded_files:
                 st.success(f"Processed {uploaded_file.name}")
             except Exception as e:
                 st.error(f"Error processing {uploaded_file.name}: {str(e)}")
+
+# Prepare prompt
+template = """
+You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. 
+If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+
+Question: {question} 
+
+Context: {context} 
+
+Answer:
+"""
+prompt = PromptTemplate.from_template(template)
+
+# Setup retrieval
+if st.session_state["vectorstore"] is not None:
+    retriever = st.session_state["vectorstore"].as_retriever(search_type="similarity", search_kwargs={"k": 3})
+
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+
+    # Build RAG chain
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
 
 if st.session_state["file_contents"]:
     st.write("Processed files:")
